@@ -15,13 +15,15 @@ from ij         import IJ, VirtualStack, ImagePlus
 from ij.plugin  import HyperStackConverter
 from ij.io      import FileSaver
 from ij.measure import ResultsTable
+from ij.gui     import GenericDialog
+from ij.plugin  import LutLoader
 
 from java.lang.System import getProperty
 path.append(getProperty('fiji.dir') + '/plugins/yeastWatcher')
 
 from libyeastwatcher import scanFiles
 
-def hyperstack(name, track, path):
+def hyperstack(name, track, path, luts):
 
     firstImgPath = track['images'][(1, 1, 1)]
     firstImg     = IJ.openImage(firstImgPath)
@@ -48,23 +50,44 @@ def hyperstack(name, track, path):
 
     img   = ImagePlus(name, vstack)
     hsc   = HyperStackConverter()
-    stack = hsc.toHyperStack(img, cs, zs, ts, "default", "grayscale")
+    stack = hsc.toHyperStack(img, cs, zs, ts, "default", "color")
+
+    for i in range(cs):
+        # this feels like the wrong way to be doing this
+        stack.show()
+        stack.setC(i + 1)
+        IJ.run(luts[i])
+        stack.hide()
 
     IJ.saveAsTiff(stack, os.path.join(path, name + "-merged"  + ".tif"))
 
     if blankPath != "":
         os.remove(blankPath)
 
+def lutsGUI(channels, luts):
+    dialog = GenericDialog("Customize LUTS")
+    for i in range(channels):
+        dialog.addChoice("Channel " + str(i) + ":", luts, luts[1])
+    dialog.showDialog()
+
+    choices = dialog.getChoices()
+
+    return [choice.getSelectedItem() for choice in choices]
+
 def run(path):
     IJ.showStatus("Scanning files")
     tracks = scanFiles(path, wellNames)
 
-    table = ResultsTable()
+    luts = IJ.getLuts()
+    if showLUTS:
+        channels = [tracks[name]['cMax'] for name in tracks]
+        luts     = lutsGUI(max(channels), luts)
 
     if scrambleNames:
         scrambledNames = [i + 1 for i in range(len(tracks))]
         shuffle(scrambledNames)
 
+    table = ResultsTable()
     for i, name in enumerate(tracks):
         IJ.showStatus("Processing track: " + name)
         IJ.showProgress(i, len(tracks))
@@ -83,7 +106,7 @@ def run(path):
             table.addValue("scrambled-name", name)
         table.show("Track summary")
 
-        hyperstack(name, track, path)  # TODO add name randomization here
+        hyperstack(name, track, path, luts)
 
     table.save(os.path.join(path, "track-summary.csv"))
 
