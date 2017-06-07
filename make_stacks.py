@@ -5,7 +5,6 @@
 
 from __future__ import with_statement
 
-import os
 import os.path
 from sys import path
 from pprint import pprint
@@ -17,17 +16,17 @@ path.append(getProperty('fiji.dir') + '/plugins/yeastWatcher')
 from libyeastwatcher import scanFiles
 
 def hyperstack(name, track):
-    return FALSE
+    return False
 
 def run(path):
     IJ.showStatus("Scanning files")
-    tracks = scanFiles(path)
+    tracks = scanFiles(path, wellNames)
 
     for name, track in tracks.iteritems():
         IJ.showStatus("Processing track: " + name)
         alias = hyperstack(name, track)  # TODO add name randomization here
 
     with open(os.path.join(path, "images.txt"), 'wt') as out:
-        pprint(tracks, stream=out)
+        pprint(tracks, stream = out)
 
 run(str(sourcePath))

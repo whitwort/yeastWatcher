@@ -1,14 +1,7 @@
-from __future__ import with_statement
-
-import os
 import os.path
-from sys import path
-from pprint import pprint
-
-from ij import IJ
 
 # (timePoint, channel, Z-stack)
-def scanFiles(path):
+def scanFiles(path, wellNames):
 
     tracks = {}
 
