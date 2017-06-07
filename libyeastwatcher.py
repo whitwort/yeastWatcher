@@ -9,7 +9,7 @@ def scanFiles(path, wellNames):
 
         if "Track" in dirpath and not "Image" in dirpath:
             if wellNames:
-                well = os.path.basename(dirpath)[:3]
+                well = os.path.basename(dirpath)[:2]
             else:
                 well = ""
 
@@ -29,7 +29,7 @@ def scanFiles(path, wellNames):
             track['timePoints'].append(timePoint)
 
         for name in filenames:
-            if name.endswith(".tif"):
+            if name.endswith(".tif") and not name.endswith("-merged.tif"):
                 z = int(name[-7:-4])
                 c = int(name[-11:-8])
 
