@@ -2,14 +2,17 @@
 # @boolean(label="Wells in file names", description="This should be checked if you enabled this feature in the file output configuration in Fluoview", value=TRUE) wellNames
 # @boolean(label="Customize LUTS", description="This feature is in interactive mode; it allows you to choose which look-up-tables to use to pseudo-color each of your channels.", value=TRUE) showLUTS
 # @boolean(label="Scramble track names", description="This feature allows you to scramble the names of the merged track files for blind scoring; the summary table lists aliases.", value=FALSE) scrambleNames
+# @boolean(label="Compress & copy", description="Compresses source files and merge files into seperate zip archives and then copies them to the location specified below.", value=TRUE) compressCopy
+# @File(label="Copy compressed files to", description="Ignored if Compress and Copy isn't checked.", style="directory") destPath
 
 from __future__ import with_statement
 
 import os
 import os.path
-from sys    import path
-from pprint import pprint
-from random import shuffle
+from sys     import path
+from pprint  import pprint
+from random  import shuffle
+from zipfile import ZipFile
 
 from ij         import IJ, VirtualStack, ImagePlus
 from ij.plugin  import HyperStackConverter
@@ -74,7 +77,27 @@ def lutsGUI(channels, luts):
 
     return [choice.getSelectedItem() for choice in choices]
 
-def run(path):
+def zipdir(source, dest, nameFilter):
+    zip     = ZipFile(dest, "w")
+    pathlen = len(source) + 1
+
+    for base, dirs, files in os.walk(source):
+        for file in files:
+            if nameFilter(file):
+                filePath = os.path.join(base, file)
+                zip.write(filePath, filePath[pathlen:])
+
+    zip.close()
+
+def compressMerge(source, dest):
+    def nameFilter(file): return "-merged.tif" in file
+    zipdir(source, dest, nameFilter)
+
+def compressSource(source, dest):
+    def nameFilter(file): return not "-merged.tif" in file
+    zipdir(source, dest, nameFilter)
+
+def run(path, dest):
     IJ.showStatus("Scanning files")
     tracks = scanFiles(path, wellNames)
 
@@ -110,4 +133,16 @@ def run(path):
 
     table.save(os.path.join(path, "track-summary.csv"))
 
-run(str(sourcePath))
+    if compressCopy:
+        IJ.showStatus("Compressing and copying merge files")
+        zippath = os.path.join(dest, "merged-tracks.zip")
+        compressMerge(path, zippath)
+
+        zip = ZipFile(zippath, "a")
+        zip.write(os.path.join(path, "track-summary.csv"), "track-summary.csv")
+        zip.close()
+
+        IJ.showStatus("Compressing and copying source files")
+        compressSource(path, os.path.join(dest, "source-files.zip"))
+
+run(str(sourcePath), str(destPath))
